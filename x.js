@@ -81,8 +81,10 @@
     };
     if (el.matches("form") && opts.method !== "GET")
       opts.body = new URLSearchParams(new FormData(el));
-    if (!fire(el, "x:beforeSend", { el, url, target, mode, opts }, true))
+    if (!fire(el, "x:beforeSend", { el, url, target, mode, opts }, true)) {
+      fire(el, "x:aborted", { el, url, target, mode, opts });
       return;
+    }
     const response = await fetch(url, opts);
     const hdrTrigger = response.headers.get("HX-Trigger");
     if (hdrTrigger) {
@@ -108,7 +110,10 @@
     const html = await response.text();
     fire(el, "x:afterSend", { el, url, opts, target, mode, response, html });
     const detail = { el, url, target, mode, html, response };
-    if (!fire(el, "x:beforeSwap", detail, true)) return;
+    if (!fire(el, "x:beforeSwap", detail, true)) {
+      fire(el, "x:aborted", detail);
+      return;
+    }
     swap(detail.mode, detail.target, detail.html);
     fire(el, "x:afterSwap", detail);
     if (!el.isConnected) fire(document.body, "x:afterSwap", detail);
