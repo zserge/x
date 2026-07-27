@@ -79,7 +79,8 @@
       method: method.toUpperCase(),
       headers: { "HX-Request": "true" },
     };
-    if (el.matches("form")) opts.body = new URLSearchParams(new FormData(el));
+    if (el.matches("form") && opts.method !== "GET")
+      opts.body = new URLSearchParams(new FormData(el));
     if (!fire(el, "x:beforeSend", { el, url, target, mode, opts }, true))
       return;
     const response = await fetch(url, opts);

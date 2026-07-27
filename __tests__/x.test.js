@@ -633,8 +633,8 @@ describe("x-swap modes", () => {
   });
 });
 
-describe("known bug — GET form must not send a body", () => {
-  test.failing("form with x-get omits the request body", async () => {
+describe("GET form must not send a body", () => {
+  test("form with x-get omits the request body", async () => {
     let sent;
     window.fetch = (url, opts = {}) => {
       sent = opts;
