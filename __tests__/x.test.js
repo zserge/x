@@ -665,49 +665,49 @@ describe("known bug — confirm cancel must clear indicator state", () => {
     window.confirm = _confirm;
   });
 
-  test.failing("canceling x-confirm removes the htmx-request class", async () => {
-    window.confirm = () => false;
-
-    const fix = fixture(
-      '<div id="spin-c" style="display:none">spinner</div>' +
-        '<div id="t-c">-</div>' +
-        '<button id="btn-c" x-get="/never" x-target="#t-c" x-confirm="sure?" x-indicator="#spin-c">go</button>',
-    );
-    route("GET /never", "should not appear");
-
-    fix.click("#btn-c");
-    await new Promise((r) => setTimeout(r, 30));
-
-    expect(fix.$("#btn-c").classList.contains("htmx-request")).toBe(false);
-    fix.remove();
-  });
-});
-
-describe("known bug — trigger state must be independent per trigger", () => {
   test.failing(
-    "a non-once trigger firing first must not block a later once trigger",
+    "canceling x-confirm removes the htmx-request class",
     async () => {
-      let calls = 0;
-      window.fetch = () => {
-        calls++;
-        return Promise.resolve(new Response("ok"));
-      };
+      window.confirm = () => false;
 
       const fix = fixture(
-        '<button id="btn-multi" x-get="/multi" x-trigger="click once, mouseover">go</button>',
+        '<div id="spin-c" style="display:none">spinner</div>' +
+          '<div id="t-c">-</div>' +
+          '<button id="btn-c" x-get="/never" x-target="#t-c" x-confirm="sure?" x-indicator="#spin-c">go</button>',
       );
+      route("GET /never", "should not appear");
 
-      fix.$("#btn-multi").dispatchEvent(
-        new MouseEvent("mouseover", { bubbles: true }),
-      );
-      await new Promise((r) => setTimeout(r, 20));
-      fix.click("#btn-multi");
-      await new Promise((r) => setTimeout(r, 20));
+      fix.click("#btn-c");
+      await new Promise((r) => setTimeout(r, 30));
 
-      expect(calls).toBe(2);
+      expect(fix.$("#btn-c").classList.contains("htmx-request")).toBe(false);
       fix.remove();
     },
   );
+});
+
+describe("known bug — trigger state must be independent per trigger", () => {
+  test("a non-once trigger firing first must not block a later once trigger", async () => {
+    let calls = 0;
+    window.fetch = () => {
+      calls++;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    const fix = fixture(
+      '<button id="btn-multi" x-get="/multi" x-trigger="click once, mouseover">go</button>',
+    );
+
+    fix
+      .$("#btn-multi")
+      .dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 20));
+    fix.click("#btn-multi");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(calls).toBe(2);
+    fix.remove();
+  });
 });
 
 describe("innerHTML must unwrap when root tag matches target", () => {

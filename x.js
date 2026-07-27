@@ -126,19 +126,20 @@
         parseTriggers(raw).forEach(({ event, options }) => {
           if (event === "load")
             return setTimeout(() => send(el, m, el.getAttribute(`x-${m}`)), 0);
+          let fired, prevValue, delayTimer;
           el.addEventListener(event, (e) => {
-            if (options.once && el.$_xonce) return; // trigger once
-            el.$_xonce = true;
+            if (options.once && fired) return; // trigger once
+            fired = true;
             // trigger only if value has changed:
             if (options.changed) {
-              const prev = el.$_xprev;
-              el.$_xprev = el.value;
+              const prev = prevValue;
+              prevValue = el.value;
               if (prev === el.value) return;
             }
             // trigger/send after a timeout:
             if (options.delay) {
-              clearTimeout(el.$_xdelay);
-              el.$_xdelay = setTimeout(
+              clearTimeout(delayTimer);
+              delayTimer = setTimeout(
                 () => send(el, m, el.getAttribute(`x-${m}`)),
                 parseInt(options.delay),
               );
