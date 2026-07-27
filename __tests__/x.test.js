@@ -653,7 +653,7 @@ describe("GET form must not send a body", () => {
   });
 });
 
-describe("known bug — confirm cancel must clear indicator state", () => {
+describe("confirm cancel must clear indicator state", () => {
   let _confirm;
   beforeEach(() => {
     _confirm = window.confirm;
@@ -662,25 +662,22 @@ describe("known bug — confirm cancel must clear indicator state", () => {
     window.confirm = _confirm;
   });
 
-  test.failing(
-    "canceling x-confirm removes the htmx-request class",
-    async () => {
-      window.confirm = () => false;
+  test("canceling x-confirm removes the htmx-request class", async () => {
+    window.confirm = () => false;
 
-      const fix = fixture(
-        '<div id="spin-c" style="display:none">spinner</div>' +
-          '<div id="t-c">-</div>' +
-          '<button id="btn-c" x-get="/never" x-target="#t-c" x-confirm="sure?" x-indicator="#spin-c">go</button>',
-      );
-      route("GET /never", "should not appear");
+    const fix = fixture(
+      '<div id="spin-c" style="display:none">spinner</div>' +
+        '<div id="t-c">-</div>' +
+        '<button id="btn-c" x-get="/never" x-target="#t-c" x-confirm="sure?" x-indicator="#spin-c">go</button>',
+    );
+    route("GET /never", "should not appear");
 
-      fix.click("#btn-c");
-      await new Promise((r) => setTimeout(r, 30));
+    fix.click("#btn-c");
+    await new Promise((r) => setTimeout(r, 30));
 
-      expect(fix.$("#btn-c").classList.contains("htmx-request")).toBe(false);
-      fix.remove();
-    },
-  );
+    expect(fix.$("#btn-c").classList.contains("htmx-request")).toBe(false);
+    fix.remove();
+  });
 });
 
 describe("trigger state must be independent per trigger", () => {
