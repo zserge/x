@@ -13,6 +13,13 @@ beforeAll(() => {
   load("plugins/indicator.js");
   load("plugins/history.js");
   load("plugins/boost.js");
+  load("plugins/disable.js");
+  load("plugins/headers.js");
+  load("plugins/include.js");
+  load("plugins/select.js");
+  load("plugins/sync.js");
+  load("plugins/validate.js");
+  load("plugins/vals.js");
 });
 
 if (!globalThis.Response) {
@@ -746,4 +753,377 @@ describe("innerHTML must unwrap when root tag matches target", () => {
 
     expect(fix.$("#bug2-text").textContent.trim()).toBe("plain text response");
   });
+});
+
+describe("plugins — vals.js", () => {
+  let fix;
+  afterEach(() => {
+    if (fix) fix.remove();
+  });
+
+  test("x-vals sends a JSON body for non-form elements", async () => {
+    let sent;
+    window.fetch = (url, opts = {}) => {
+      sent = opts;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    fix = fixture(
+      '<div id="val1">-</div>' +
+        '<button id="btn-val1" x-post="/save" x-target="#val1" x-vals=\'{"priority":"high"}\'>go</button>',
+    );
+
+    fix.click("#btn-val1");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(JSON.parse(sent.body)).toEqual({ priority: "high" });
+    expect(sent.headers["Content-Type"]).toBe("application/json");
+  });
+
+  test("x-vals merges into a form's body", async () => {
+    let sent;
+    window.fetch = (url, opts = {}) => {
+      sent = opts;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    fix = fixture(
+      '<form x-post="/save2" x-target="#val2" x-vals=\'{"source":"web"}\'>' +
+        '<input name="name" value="test">' +
+        '<button type="submit">go</button></form>' +
+        '<div id="val2">-</div>',
+    );
+
+    fix.click("button");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(sent.body.get("name")).toBe("test");
+    expect(sent.body.get("source")).toBe("web");
+  });
+
+  test.failing("x-vals must not attach a body to a GET request", async () => {
+    let sent;
+    window.fetch = (url, opts = {}) => {
+      sent = opts;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    fix = fixture(
+      '<div id="val3">-</div>' +
+        '<button id="btn-val3" x-get="/search" x-target="#val3" x-vals=\'{"q":"hi"}\'>go</button>',
+    );
+
+    fix.click("#btn-val3");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(sent.body).toBeUndefined();
+  });
+});
+
+describe("plugins — validate.js", () => {
+  let fix;
+  afterEach(() => {
+    if (fix) fix.remove();
+  });
+
+  test("invalid form blocks the request", async () => {
+    fix = fixture(
+      '<div id="v1">-</div>' +
+        '<form x-post="/submit" x-target="#v1" x-validate>' +
+        '<input name="email" required>' +
+        '<button type="submit">go</button></form>',
+    );
+    route("POST /submit", "ok");
+
+    fix.click("button");
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(fix.$("#v1").textContent.trim()).toBe("-");
+  });
+
+  test("valid form proceeds", async () => {
+    fix = fixture(
+      '<div id="v2">-</div>' +
+        '<form x-post="/submit2" x-target="#v2" x-validate>' +
+        '<input name="email" required value="a@b.com">' +
+        '<button type="submit">go</button></form>',
+    );
+    route("POST /submit2", "ok");
+
+    const p = whenSwapped("v2");
+    fix.click("button");
+    await p;
+
+    expect(fix.$("#v2").textContent.trim()).toBe("ok");
+  });
+});
+
+describe("plugins — sync.js", () => {
+  let fix;
+  afterEach(() => {
+    if (fix) fix.remove();
+  });
+
+  test("default mode aborts the previous in-flight request", async () => {
+    const signals = [];
+    window.fetch = (url, opts = {}) => {
+      signals.push(opts.signal);
+      return new Promise(() => {});
+    };
+
+    fix = fixture(
+      '<div id="res-sync">-</div>' +
+        '<input id="inp-sync" x-get="/search" x-target="#res-sync" x-sync>',
+    );
+
+    fix.$("#inp-sync").dispatchEvent(new Event("change", { bubbles: true }));
+    fix.$("#inp-sync").dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(signals[0].aborted).toBe(true);
+  });
+
+  test('x-sync="drop" ignores a second request while one is in flight', async () => {
+    let calls = 0;
+    window.fetch = () => {
+      calls++;
+      return new Promise(() => {});
+    };
+
+    fix = fixture(
+      '<div id="res-drop">-</div>' +
+        '<button id="btn-drop" x-get="/d" x-target="#res-drop" x-sync="drop">go</button>',
+    );
+
+    fix.click("#btn-drop");
+    fix.click("#btn-drop");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(calls).toBe(1);
+  });
+
+  test.failing(
+    "elements without x-sync must not abort each other",
+    async () => {
+      let firstSignal;
+      window.fetch = (url, opts = {}) => {
+        if (!firstSignal) firstSignal = opts.signal;
+        return new Promise(() => {});
+      };
+
+      fix = fixture(
+        '<div id="result">-</div>' +
+          '<button id="btn-a" x-get="/a" x-target="#result">A</button>' +
+          '<button id="btn-b" x-get="/b" x-target="#result">B</button>',
+      );
+
+      fix.click("#btn-a");
+      fix.click("#btn-b");
+      await new Promise((r) => setTimeout(r, 20));
+
+      expect(firstSignal?.aborted).toBe(false);
+    },
+  );
+});
+
+describe("plugins — select.js", () => {
+  let fix;
+  afterEach(() => {
+    if (fix) fix.remove();
+  });
+
+  test("x-select extracts a matching fragment from the response", async () => {
+    fix = fixture(
+      '<div id="sel1">-</div>' +
+        '<button id="btn-sel1" x-get="/page" x-target="#sel1" x-select="#content">go</button>',
+    );
+    route(
+      "GET /page",
+      '<nav>ignored</nav><div id="content">picked</div><footer>ignored</footer>',
+    );
+
+    const p = whenSwapped("sel1");
+    fix.click("#btn-sel1");
+    await p;
+
+    expect(fix.$("#sel1").textContent.trim()).toBe("picked");
+    expect(fix.$("#sel1").querySelector("nav")).toBeNull();
+  });
+
+  test("x-select with no match falls back to the full response", async () => {
+    fix = fixture(
+      '<div id="sel2">-</div>' +
+        '<button id="btn-sel2" x-get="/page2" x-target="#sel2" x-select="#missing">go</button>',
+    );
+    route("GET /page2", "<p>whole response</p>");
+
+    const p = whenSwapped("sel2");
+    fix.click("#btn-sel2");
+    await p;
+
+    expect(fix.$("#sel2").textContent.trim()).toBe("whole response");
+  });
+});
+
+describe("plugins — include.js", () => {
+  let fix;
+  afterEach(() => {
+    if (fix) fix.remove();
+  });
+
+  test("x-include merges a single field's value into the body", async () => {
+    let sent;
+    window.fetch = (url, opts = {}) => {
+      sent = opts;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    fix = fixture(
+      '<input id="extra" name="tag" value="urgent">' +
+        '<div id="inc1">-</div>' +
+        '<button id="btn-inc1" x-post="/save" x-target="#inc1" x-include="#extra">go</button>',
+    );
+
+    fix.click("#btn-inc1");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(sent.body.get("tag")).toBe("urgent");
+  });
+
+  test("x-include merges another form's fields into the body", async () => {
+    let sent;
+    window.fetch = (url, opts = {}) => {
+      sent = opts;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    fix = fixture(
+      '<form id="side-form"><input name="lang" value="en"></form>' +
+        '<div id="inc2">-</div>' +
+        '<button id="btn-inc2" x-post="/save2" x-target="#inc2" x-include="#side-form">go</button>',
+    );
+
+    fix.click("#btn-inc2");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(sent.body.get("lang")).toBe("en");
+  });
+
+  test.failing(
+    "x-include must not attach a body to a GET request",
+    async () => {
+      let sent;
+      window.fetch = (url, opts = {}) => {
+        sent = opts;
+        return Promise.resolve(new Response("ok"));
+      };
+
+      fix = fixture(
+        '<input id="extra2" name="q" value="hi">' +
+          '<div id="inc3">-</div>' +
+          '<button id="btn-inc3" x-get="/search" x-target="#inc3" x-include="#extra2">go</button>',
+      );
+
+      fix.click("#btn-inc3");
+      await new Promise((r) => setTimeout(r, 20));
+
+      expect(sent.body).toBeUndefined();
+    },
+  );
+});
+
+describe("plugins — headers.js", () => {
+  let fix;
+  afterEach(() => {
+    if (fix) fix.remove();
+  });
+
+  test("x-headers are merged into the request", async () => {
+    let sent;
+    window.fetch = (url, opts = {}) => {
+      sent = opts;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    fix = fixture(
+      '<div id="hdr1">-</div>' +
+        '<button id="btn-hdr1" x-get="/api" x-target="#hdr1" x-headers=\'{"Authorization":"Bearer tkn"}\'>go</button>',
+    );
+
+    fix.click("#btn-hdr1");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(sent.headers.Authorization).toBe("Bearer tkn");
+    expect(sent.headers["HX-Request"]).toBe("true");
+  });
+
+  test("malformed x-headers JSON is ignored, not thrown", async () => {
+    let sent;
+    window.fetch = (url, opts = {}) => {
+      sent = opts;
+      return Promise.resolve(new Response("ok"));
+    };
+
+    fix = fixture(
+      '<div id="hdr2">-</div>' +
+        '<button id="btn-hdr2" x-get="/api2" x-target="#hdr2" x-headers=\'not json\'>go</button>',
+    );
+
+    fix.click("#btn-hdr2");
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(sent.headers["HX-Request"]).toBe("true");
+  });
+});
+
+describe("plugins — disable.js", () => {
+  let fix, _confirm;
+  beforeEach(() => {
+    _confirm = window.confirm;
+  });
+  afterEach(() => {
+    window.confirm = _confirm;
+    if (fix) fix.remove();
+  });
+
+  test("element is disabled while the request is in flight", async () => {
+    fix = fixture(
+      '<div id="dis1">-</div>' +
+        '<button id="btn-dis1" x-get="/dis" x-target="#dis1" x-disable>go</button>',
+    );
+    route("GET /dis", "ok");
+
+    let disabledDuringSend = false;
+    document.body.addEventListener(
+      "x:beforeSend",
+      () => {
+        disabledDuringSend = fix.$("#btn-dis1").disabled;
+      },
+      { once: true },
+    );
+
+    const p = whenSwapped("dis1");
+    fix.click("#btn-dis1");
+    await p;
+
+    expect(disabledDuringSend).toBe(true);
+    expect(fix.$("#btn-dis1").disabled).toBe(false);
+  });
+
+  test.failing(
+    "a request cancelled before it's sent must not leave the element disabled forever",
+    async () => {
+      window.confirm = () => false;
+      fix = fixture(
+        '<div id="dis2">-</div>' +
+          '<button id="btn-dis2" x-get="/dis2" x-target="#dis2" x-disable x-confirm="sure?">go</button>',
+      );
+      route("GET /dis2", "ok");
+
+      fix.click("#btn-dis2");
+      await new Promise((r) => setTimeout(r, 30));
+
+      expect(fix.$("#btn-dis2").disabled).toBe(false);
+    },
+  );
 });
