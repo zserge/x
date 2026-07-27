@@ -60,6 +60,14 @@
   const swap = (mode, target, html) => {
     const tpl = document.createElement("template");
     tpl.innerHTML = html;
+    if (
+      mode === "innerHTML" &&
+      tpl.content.children.length === 1 &&
+      tpl.content.firstElementChild.tagName === target.tagName
+    ) {
+      target.replaceChildren(...tpl.content.firstElementChild.childNodes);
+      return;
+    }
     (SWAP[mode] || ((t, f) => t.replaceChildren(f)))(target, tpl.content);
   };
 
