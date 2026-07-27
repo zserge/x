@@ -111,6 +111,7 @@
     if (!fire(el, "x:beforeSwap", detail, true)) return;
     swap(detail.mode, detail.target, detail.html);
     fire(el, "x:afterSwap", detail);
+    if (!el.isConnected) fire(document.body, "x:afterSwap", detail);
     scan(detail.target); // rebind anything the swap just brought in
   };
 

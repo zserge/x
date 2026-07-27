@@ -569,25 +569,22 @@ describe("x-target resolution", () => {
   });
 });
 
-describe("known bug — afterSwap must still bubble when target is an ancestor", () => {
-  test.failing(
-    "indicator is cleared even when x-target is an ancestor of the trigger",
-    async () => {
-      const fix = fixture(
-        '<div id="spin-a" style="display:none">spinner</div>' +
-          '<div class="card" id="card-a">' +
-          '<button id="btn-a" x-get="/anc" x-target="closest .card" x-indicator="#spin-a">go</button>' +
-          "</div>",
-      );
-      route("GET /anc", "swapped");
+describe("afterSwap must still bubble when target is an ancestor", () => {
+  test("indicator is cleared even when x-target is an ancestor of the trigger", async () => {
+    const fix = fixture(
+      '<div id="spin-a" style="display:none">spinner</div>' +
+        '<div class="card" id="card-a">' +
+        '<button id="btn-a" x-get="/anc" x-target="closest .card" x-indicator="#spin-a">go</button>' +
+        "</div>",
+    );
+    route("GET /anc", "swapped");
 
-      fix.click("#btn-a");
-      await new Promise((r) => setTimeout(r, 30));
+    fix.click("#btn-a");
+    await new Promise((r) => setTimeout(r, 30));
 
-      expect(fix.$("#spin-a").style.display).toBe("none");
-      fix.remove();
-    },
-  );
+    expect(fix.$("#spin-a").style.display).toBe("none");
+    fix.remove();
+  });
 });
 
 describe("x-swap modes", () => {
@@ -686,7 +683,7 @@ describe("known bug — confirm cancel must clear indicator state", () => {
   );
 });
 
-describe("known bug — trigger state must be independent per trigger", () => {
+describe("trigger state must be independent per trigger", () => {
   test("a non-once trigger firing first must not block a later once trigger", async () => {
     let calls = 0;
     window.fetch = () => {
