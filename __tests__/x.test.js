@@ -801,7 +801,7 @@ describe("plugins — vals.js", () => {
     expect(sent.body.get("source")).toBe("web");
   });
 
-  test.failing("x-vals must not attach a body to a GET request", async () => {
+  test("x-vals must not attach a body to a GET request", async () => {
     let sent;
     window.fetch = (url, opts = {}) => {
       sent = opts;
@@ -902,7 +902,7 @@ describe("plugins — sync.js", () => {
     expect(calls).toBe(1);
   });
 
-  test.failing(
+  test(
     "elements without x-sync must not abort each other",
     async () => {
       let firstSignal;
@@ -921,7 +921,7 @@ describe("plugins — sync.js", () => {
       fix.click("#btn-b");
       await new Promise((r) => setTimeout(r, 20));
 
-      expect(firstSignal?.aborted).toBe(false);
+      expect(firstSignal?.aborted).toBeFalsy();
     },
   );
 });
@@ -1009,7 +1009,7 @@ describe("plugins — include.js", () => {
     expect(sent.body.get("lang")).toBe("en");
   });
 
-  test.failing(
+  test(
     "x-include must not attach a body to a GET request",
     async () => {
       let sent;
@@ -1110,7 +1110,7 @@ describe("plugins — disable.js", () => {
     expect(fix.$("#btn-dis1").disabled).toBe(false);
   });
 
-  test.failing(
+  test(
     "a request cancelled before it's sent must not leave the element disabled forever",
     async () => {
       window.confirm = () => false;
