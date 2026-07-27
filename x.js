@@ -107,8 +107,10 @@
 
   // process attributes and bind events to elements with x-get/x-post/x-put/x-patch/x-delete attributes
   const scan = (root = document.body) => {
-    METHODS.forEach((m) =>
-      root.querySelectorAll(`[x-${m}]`).forEach((el) => {
+    METHODS.forEach((m) => {
+      const els = root.querySelectorAll(`[x-${m}]`);
+      const list = root.matches?.(`[x-${m}]`) ? [root, ...els] : els;
+      list.forEach((el) => {
         if (el.$_xbound) return;
         el.$_xbound = true;
         const raw = attr(el, "x-trigger") || defaultTrigger(el);
@@ -137,8 +139,8 @@
             send(el, m, el.getAttribute(`x-${m}`));
           });
         });
-      }),
-    );
+      });
+    });
     fire(root, "x:scan", { root });
   };
 
