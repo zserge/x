@@ -29,5 +29,5 @@
     inflight.delete(key);
   };
   document.body.addEventListener('x:afterSwap', cleanup);
-  // No x:sendError yet, but AbortError is handled by fetch rejection anyway
+  document.body.addEventListener('x:error', cleanup);
 })();

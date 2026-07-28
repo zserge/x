@@ -17,4 +17,5 @@
   };
   document.body.addEventListener('x:afterSwap', restore);
   document.body.addEventListener('x:aborted', restore);
+  document.body.addEventListener('x:error', restore);
 })();

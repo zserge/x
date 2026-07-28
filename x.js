@@ -85,29 +85,36 @@
       fire(el, "x:aborted", { el, url, target, mode, opts });
       return;
     }
-    const response = await fetch(url, opts);
-    const hdrTrigger = response.headers.get("HX-Trigger");
-    if (hdrTrigger) {
-      try {
-        const data = JSON.parse(hdrTrigger);
-        Object.entries(data).forEach(([ev, d]) => fire(document.body, ev, d));
-      } catch {
-        fire(document.body, hdrTrigger);
+    let response, html;
+    try {
+      response = await fetch(url, opts);
+      const hdrTrigger = response.headers.get("HX-Trigger");
+      if (hdrTrigger) {
+        try {
+          const data = JSON.parse(hdrTrigger);
+          Object.entries(data).forEach(([ev, d]) => fire(document.body, ev, d));
+        } catch {
+          fire(document.body, hdrTrigger);
+        }
       }
-    }
-    if (response.headers.get("HX-Redirect")) {
-      window.location.href = response.headers.get("HX-Redirect");
+      if (response.headers.get("HX-Redirect")) {
+        window.location.href = response.headers.get("HX-Redirect");
+        return;
+      }
+      if (response.headers.get("HX-Refresh") === "true") {
+        window.location.reload();
+        return;
+      }
+      if (response.headers.get("HX-Retarget"))
+        target = resolve(el, response.headers.get("HX-Retarget"));
+      if (response.headers.get("HX-Reswap"))
+        mode = response.headers.get("HX-Reswap");
+      html = await response.text();
+    } catch (error) {
+      // network failure, bad URL, or an aborted fetch (e.g. from x-sync)
+      fire(el, "x:error", { el, url, target, mode, opts, response, error });
       return;
     }
-    if (response.headers.get("HX-Refresh") === "true") {
-      window.location.reload();
-      return;
-    }
-    if (response.headers.get("HX-Retarget"))
-      target = resolve(el, response.headers.get("HX-Retarget"));
-    if (response.headers.get("HX-Reswap"))
-      mode = response.headers.get("HX-Reswap");
-    const html = await response.text();
     fire(el, "x:afterSend", { el, url, opts, target, mode, response, html });
     const detail = { el, url, target, mode, html, response };
     if (!fire(el, "x:beforeSwap", detail, true)) {

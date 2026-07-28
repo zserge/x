@@ -17,4 +17,5 @@
 
   document.body.addEventListener("x:afterSwap", (e) => clear(e.detail.el));
   document.body.addEventListener("x:aborted", (e) => clear(e.detail.el));
+  document.body.addEventListener("x:error", (e) => clear(e.detail.el));
 })();
