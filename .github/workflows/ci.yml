@@ -25,10 +25,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
-      - name: vet + build root demo
-        run: |
-          go vet main.go
-          go build -o /dev/null main.go
       - name: vet + build TodoMVC example
         working-directory: examples/todomvc
         run: |
