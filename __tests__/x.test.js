@@ -20,6 +20,7 @@ beforeAll(() => {
   load("plugins/sync.js");
   load("plugins/validate.js");
   load("plugins/vals.js");
+  load("plugins/oob.js");
 });
 
 if (!globalThis.Response) {
@@ -1126,4 +1127,122 @@ describe("plugins — disable.js", () => {
       expect(fix.$("#btn-dis2").disabled).toBe(false);
     },
   );
+});
+
+describe("plugins — oob.js", () => {
+  let fix;
+  afterEach(() => {
+    if (fix) fix.remove();
+  });
+
+  test("an oob fragment updates its own target, stripped from the primary swap", async () => {
+    fix = fixture(
+      '<div id="oob1">before</div>' +
+        '<div id="t-oob1">-</div>' +
+        '<button id="btn-oob1" x-get="/mixed" x-target="#t-oob1">go</button>',
+    );
+    route("GET /mixed", 'primary<div id="oob1" x-swap-oob>updated</div>');
+
+    const p = whenSwapped("t-oob1");
+    fix.click("#btn-oob1");
+    await p;
+
+    expect(fix.$("#t-oob1").textContent.trim()).toBe("primary");
+    expect(fix.$("#oob1").textContent.trim()).toBe("updated");
+  });
+
+  test("multiple oob fragments in one response all get updated", async () => {
+    fix = fixture(
+      '<div id="oobA">A-before</div>' +
+        '<div id="oobB">B-before</div>' +
+        '<div id="t-oob2">-</div>' +
+        '<button id="btn-oob2" x-get="/multi-oob" x-target="#t-oob2">go</button>',
+    );
+    route(
+      "GET /multi-oob",
+      'primary<div id="oobA" x-swap-oob>A-after</div><div id="oobB" x-swap-oob>B-after</div>',
+    );
+
+    const p = whenSwapped("t-oob2");
+    fix.click("#btn-oob2");
+    await p;
+
+    expect(fix.$("#oobA").textContent.trim()).toBe("A-after");
+    expect(fix.$("#oobB").textContent.trim()).toBe("B-after");
+    expect(fix.$("#t-oob2").textContent.trim()).toBe("primary");
+  });
+
+  test("elements inside an oob fragment get scanned and bound", async () => {
+    fix = fixture(
+      '<div id="oob-widget">old</div>' +
+        '<div id="t-oob3">-</div>' +
+        '<button id="btn-oob3" x-get="/with-widget" x-target="#t-oob3">go</button>',
+    );
+    route(
+      "GET /with-widget",
+      'primary<div id="oob-widget" x-swap-oob>' +
+        '<button id="inner-btn" x-get="/inner">inner</button></div>',
+    );
+    route("GET /inner", "clicked");
+
+    const p = whenSwapped("t-oob3");
+    fix.click("#btn-oob3");
+    await p;
+
+    const p2 = whenSwapped("inner-btn");
+    fix.$("#inner-btn").click();
+    await p2;
+    expect(fix.$("#inner-btn").textContent.trim()).toBe("clicked");
+  });
+
+  test("a response that's oob-only cancels the primary swap", async () => {
+    fix = fixture(
+      '<div id="oob-only-target">before</div>' +
+        '<div id="t-oob4">untouched</div>' +
+        '<button id="btn-oob4" x-get="/oob-only" x-target="#t-oob4">go</button>',
+    );
+    route("GET /oob-only", '<div id="oob-only-target" x-swap-oob>updated</div>');
+
+    fix.click("#btn-oob4");
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(fix.$("#oob-only-target").textContent.trim()).toBe("updated");
+    expect(fix.$("#t-oob4").textContent.trim()).toBe("untouched");
+  });
+
+  test("an oob fragment with no matching target is skipped without throwing", async () => {
+    fix = fixture(
+      '<div id="t-oob5">-</div>' +
+        '<button id="btn-oob5" x-get="/dangling-oob" x-target="#t-oob5">go</button>',
+    );
+    route(
+      "GET /dangling-oob",
+      'primary<div id="does-not-exist" x-swap-oob>orphan</div>',
+    );
+
+    const p = whenSwapped("t-oob5");
+    fix.click("#btn-oob5");
+    await p;
+
+    expect(fix.$("#t-oob5").textContent.trim()).toBe("primary");
+  });
+
+  test("x-swap-oob value picks the swap mode", async () => {
+    fix = fixture(
+      '<div id="oob-inner"><span>old</span></div>' +
+        '<div id="t-oob6">-</div>' +
+        '<button id="btn-oob6" x-get="/oob-mode" x-target="#t-oob6">go</button>',
+    );
+    route(
+      "GET /oob-mode",
+      'primary<div id="oob-inner" x-swap-oob="innerHTML"><span>new</span></div>',
+    );
+
+    const p = whenSwapped("t-oob6");
+    fix.click("#btn-oob6");
+    await p;
+
+    expect(fix.$("#oob-inner").children.length).toBe(1);
+    expect(fix.$("#oob-inner span").textContent.trim()).toBe("new");
+  });
 });
