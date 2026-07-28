@@ -1,0 +1,32 @@
+{
+  "name": "x",
+  "version": "0.1.0",
+  "description": "A tiny htmx-inspired library — drive AJAX from HTML attributes",
+  "license": "MIT",
+  "author": "Serge Zaitsev",
+  "repository": "github:zserge/x",
+  "bugs": "https://github.com/zserge/x/issues",
+  "main": "x.js",
+  "files": [
+    "x.js",
+    "plugins/"
+  ],
+  "scripts": {
+    "test": "jest",
+    "build": "mkdir -p dist && cat x.js plugins/*.js > dist/x.js && npx terser dist/x.js --compress --mangle --output dist/x.min.js",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "globals": "^17.8.0",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  }
+}
